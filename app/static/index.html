@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Document QA</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar"><a class="brand" href="/">D<span class="brand-dot">.</span> <span>Document QA</span></a><a href="/docs">API docs <span aria-hidden="true">↗</span></a></header>
+    <section class="intro" aria-labelledby="title">
+      <p class="eyebrow">ANSWERS WITH SOURCES</p>
+      <h1 id="title">Ask your document.</h1>
+      <p class="lede">Upload your questions and a source document. Get concise answers with citations you can check.</p>
+    </section>
+    <section class="panel" aria-labelledby="upload-title">
+      <div class="panel-heading"><h2 id="upload-title">Start with two files</h2><span class="step-label">01 / UPLOAD</span></div>
+      <form id="qa-form">
+        <div class="upload-grid">
+          <div class="file-card"><label for="questions-file"><span class="file-number">01</span> Questions</label><p id="questions-help">A JSON array of questions, or an object with a <code>questions</code> array.</p><input type="file" id="questions-file" name="questions_file" accept=".json,application/json" aria-describedby="questions-help" required></div>
+          <div class="file-card"><label for="document-file"><span class="file-number">02</span> Source document</label><p id="document-help">A text-based PDF or JSON file to use as evidence for your answers.</p><input type="file" id="document-file" name="document_file" accept=".pdf,.json,application/pdf,application/json" aria-describedby="document-help" required></div>
+        </div>
+        <div class="form-footer"><p>Need a starting point? <a href="/static/examples/questions.json" download>Questions</a> · <a href="/static/examples/document.json" download>JSON source</a> · <a href="/static/examples/document.pdf" download>PDF source</a><small>Example files contain fictional data.</small></p><button id="submit-button" type="submit">Get answers <span aria-hidden="true">→</span></button></div>
+      </form>
+    </section>
+    <div id="notice" role="status" aria-live="polite" hidden></div>
+    <section id="results-section" class="results" aria-labelledby="results-title" hidden>
+      <div class="results-heading"><div><p class="eyebrow">02 / REVIEW</p><h2 id="results-title" tabindex="-1">Your answers</h2></div><button id="download-button" class="secondary" type="button">Download JSON</button></div>
+      <p id="results-summary" class="summary"></p>
+      <div id="results-list"></div>
+      <p id="request-reference" class="request-reference"></p>
+    </section>
+    <footer class="footer"><span>Check the cited evidence before relying on an answer.</span><span>PDF & JSON</span></footer>
+  </main>
+</body>
+</html>

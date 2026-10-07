@@ -1,0 +1,10 @@
+*
+!Dockerfile
+!requirements.lock
+!pyproject.toml
+!README.md
+!THIRD_PARTY_NOTICES.md
+!app/
+!app/**
+app/**/__pycache__/
+app/**/*.pyc
