@@ -5,7 +5,43 @@ const notice = document.querySelector("#notice");
 const section = document.querySelector("#results-section");
 const list = document.querySelector("#results-list");
 const download = document.querySelector("#download-button");
+const documentInput = document.querySelector("#document-file");
+const tenantToken = document.querySelector("#tenant-token");
+const savedDocument = document.querySelector("#saved-document");
 let latestResponse = null;
+let savedDocumentId = null;
+let savedFileKey = null;
+let savedToken = "";
+let savedTenantId = "";
+
+function fileKey(file) {
+  return file ? `${file.name}:${file.size}:${file.lastModified}` : "";
+}
+function forgetSavedDocument() {
+  savedDocumentId = null;
+  savedFileKey = null;
+  savedToken = "";
+  savedTenantId = "";
+  savedDocument.hidden = true;
+}
+async function postForm(url, body) {
+  const response = await fetch(url, {
+    method: "POST",
+    body,
+    headers: { Authorization: `Bearer ${tenantToken.value}` },
+  });
+  let data;
+  try { data = await response.json(); }
+  catch { throw new Error(`The server returned an unreadable response (${response.status}). Please try again.`); }
+  if (!response.ok) {
+    const message = data.error?.code === "PROVIDER_NOT_CONFIGURED"
+      ? "The answer service is not configured yet. Please ask the server administrator to finish setup."
+      : data.error?.message || `Request failed (${response.status}).`;
+    const requestId = data.error?.request_id || response.headers.get("X-Request-ID");
+    throw new Error(message + (requestId ? ` Request ID: ${requestId}` : ""));
+  }
+  return data;
+}
 
 function element(tag, className, text) {
   const node = document.createElement(tag);
@@ -54,25 +90,31 @@ form.addEventListener("submit", async (event) => {
   latestResponse = null;
   section.hidden = true;
   list.replaceChildren();
-  const body = new FormData(form);
+  const selected = documentInput.files[0];
+  const selectedKey = fileKey(selected);
   submit.disabled = true;
   form.setAttribute("aria-busy", "true");
   showNotice("Reading your document and preparing answers…", "loading");
   try {
-    const response = await fetch("/api/v1/qa", { method: "POST", body });
-    let data;
-    try { data = await response.json(); }
-    catch { throw new Error(`The server returned an unreadable response (${response.status}). Please try again.`); }
-    if (!response.ok) {
-      const message = data.error?.code === "PROVIDER_NOT_CONFIGURED"
-        ? "The answer service is not configured yet. Please ask the server administrator to finish setup."
-        : data.error?.message || `Request failed (${response.status}).`;
-      const requestId = data.error?.request_id || response.headers.get("X-Request-ID");
-      throw new Error(message + (requestId ? ` Request ID: ${requestId}` : ""));
+    if (tenantToken.value !== savedToken) forgetSavedDocument();
+    if (!savedDocumentId || selectedKey !== savedFileKey) {
+      const upload = new FormData();
+      upload.append("document_file", selected);
+      const created = await postForm("/api/v1/documents", upload);
+      savedDocumentId = created.document_id;
+      savedFileKey = selectedKey;
+      savedToken = tenantToken.value;
+      savedTenantId = created.tenant_id;
     }
+    const questions = new FormData();
+    questions.append("questions_file", form.elements.questions_file.files[0]);
+    showNotice("Preparing answers from the saved document…", "loading");
+    const data = await postForm(`/api/v1/documents/${savedDocumentId}/questions`, questions);
     if (!Array.isArray(data.results) || !data.metadata || !data.request_id) {
       throw new Error("The server returned an unexpected response. Please try again.");
     }
+    savedDocument.hidden = false;
+    savedDocument.textContent = `Saved document for ${savedTenantId}: ${savedDocumentId}`;
     renderResults(data);
     latestResponse = data;
     notice.hidden = true;
@@ -83,6 +125,16 @@ form.addEventListener("submit", async (event) => {
     submit.disabled = false;
     form.removeAttribute("aria-busy");
   }
+});
+documentInput.addEventListener("change", () => {
+  if (fileKey(documentInput.files[0]) !== savedFileKey) {
+    savedDocumentId = null;
+    savedFileKey = null;
+    savedDocument.hidden = true;
+  }
+});
+tenantToken.addEventListener("input", () => {
+  if (tenantToken.value !== savedToken) forgetSavedDocument();
 });
 download.addEventListener("click", () => {
   if (!latestResponse) return;

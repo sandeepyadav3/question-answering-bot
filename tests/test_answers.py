@@ -75,6 +75,28 @@ def test_grounding_discards_invalid_evidence_and_deduplicates_exact_quotes():
     assert result.citations[0].json_path == '$["cloud"]'
 
 
+def test_pdf_line_break_still_counts_as_the_source_quote():
+    source = "Backups run\ndaily with incremental capture."
+    context = [DocumentChunk("pdf-p3-c0", source, "pdf", page=3)]
+    result = validate_grounding(
+        "How often are backups run?",
+        GroundedAnswer(
+            answerable=True,
+            answer="Daily",
+            evidence=[
+                EvidenceQuote(
+                    chunk_id="pdf-p3-c0",
+                    quote="Backups run daily with incremental capture.",
+                )
+            ],
+            explanation=None,
+        ),
+        context,
+    )
+    assert result.status == "answered"
+    assert result.citations[0].snippet == source
+
+
 def test_whitespace_only_evidence_is_rejected():
     context = [DocumentChunk("chunk-space", "AWS is hosted here. ", "pdf", page=1)]
     result = validate_grounding(

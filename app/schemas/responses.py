@@ -10,6 +10,13 @@ class HealthResponse(ContractModel):
     status: Literal["ok"] = "ok"
 
 
+class DocumentCreated(ContractModel):
+    document_id: UUID
+    source_type: Literal["pdf", "json"]
+    chunk_count: int = Field(ge=1)
+    tenant_id: str = Field(min_length=1)
+
+
 class RequestError(ErrorDetail):
     request_id: UUID
 

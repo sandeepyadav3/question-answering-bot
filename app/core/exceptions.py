@@ -7,11 +7,18 @@ from app.schemas.responses import ErrorResponse, RequestError
 
 
 class ServiceError(Exception):
-    def __init__(self, code: str, message: str, status_code: int):
+    def __init__(
+        self,
+        code: str,
+        message: str,
+        status_code: int,
+        headers: dict[str, str] | None = None,
+    ):
         super().__init__(message)
         self.code = code
         self.message = message
         self.status_code = status_code
+        self.headers = headers
 
 
 def error_response(request: Request, code: str, message: str, status_code: int) -> JSONResponse:
@@ -24,7 +31,10 @@ def error_response(request: Request, code: str, message: str, status_code: int) 
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(ServiceError)
     async def service_error_handler(request: Request, exc: ServiceError) -> JSONResponse:
-        return error_response(request, exc.code, exc.message, exc.status_code)
+        response = error_response(request, exc.code, exc.message, exc.status_code)
+        if exc.headers:
+            response.headers.update(exc.headers)
+        return response
 
     @app.exception_handler(RequestValidationError)
     async def validation_error_handler(

@@ -35,6 +35,7 @@ def test_frontend_assets_and_content_policy(path, content_type):
     if path == "/":
         assert 'name="questions_file"' in response.text
         assert 'name="document_file"' in response.text
+        assert 'name="tenant_token"' in response.text
         assert 'color-scheme" content="dark"' in response.text
 
 

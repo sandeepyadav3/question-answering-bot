@@ -40,7 +40,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         token = request_metrics.set(RequestMetrics(str(request_id)))
         started = perf_counter()
         status = 500
-        route = request.url.path if request.url.path in {"/health", "/api/v1/qa"} else "other"
+        path = request.url.path
+        route = (
+            path
+            if path in {"/health", "/api/v1/qa"} or path.startswith("/api/v1/documents")
+            else "other"
+        )
         try:
             try:
                 response = await call_next(request)

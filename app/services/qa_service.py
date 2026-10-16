@@ -39,6 +39,28 @@ class QAService:
         started_at = perf_counter() if started_at is None else started_at
         retrieval_started = perf_counter()
         retrieved = await self.retrieval.retrieve(ingestion.chunks, questions)
+        return await self._complete(
+            retrieved, len(ingestion.chunks), request_id, started_at, retrieval_started
+        )
+
+    async def answer_saved(
+        self,
+        collection_name: str,
+        chunk_count: int,
+        questions: list[str],
+        request_id: UUID,
+        started_at: float | None = None,
+    ) -> QAResponse:
+        started_at = perf_counter() if started_at is None else started_at
+        retrieval_started = perf_counter()
+        retrieved = await self.retrieval.retrieve_saved(collection_name, questions)
+        return await self._complete(
+            retrieved, chunk_count, request_id, started_at, retrieval_started
+        )
+
+    async def _complete(
+        self, retrieved, chunk_count, request_id, started_at, retrieval_started
+    ) -> QAResponse:
         emit(
             "stage_completed",
             stage="retrieval",
@@ -113,7 +135,7 @@ class QAService:
                 questions_answered=sum(r.status == "answered" for r in results),
                 questions_not_found=sum(r.status == "not_found" for r in results),
                 questions_failed=sum(r.status == "error" for r in results),
-                chunk_count=len(ingestion.chunks),
+                chunk_count=chunk_count,
                 latency_ms=(perf_counter() - started_at) * 1000,
             ),
         )

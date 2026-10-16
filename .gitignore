@@ -7,5 +7,6 @@ __pycache__/
 .env
 dist/
 build/
+data/
 node_modules/
 package-lock.json

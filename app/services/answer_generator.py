@@ -1,5 +1,6 @@
 import asyncio
 import json
+import re
 from collections.abc import Sequence
 from typing import Protocol
 
@@ -136,6 +137,19 @@ def _clean_explanation(text: str | None, fallback: str | None = None) -> str | N
     return cleaned
 
 
+def _verbatim_span(source: str, quote: str) -> str | None:
+    """Return the source slice a quote copies, allowing PDF line breaks to match spaces."""
+    if not quote.strip():
+        return None
+    if quote in source:
+        return quote
+    parts = quote.split()
+    if not parts:
+        return None
+    match = re.search(r"\s+".join(re.escape(part) for part in parts), source)
+    return None if match is None else match.group(0)
+
+
 def validate_grounding(
     question: str, output: GroundedAnswer, context: Sequence[DocumentChunk]
 ) -> QuestionResult:
@@ -151,16 +165,12 @@ def validate_grounding(
     seen: set[tuple[str, str]] = set()
     for evidence in output.evidence:
         chunk = by_id.get(evidence.chunk_id)
-        key = (evidence.chunk_id, evidence.quote)
-        if (
-            chunk is None
-            or not evidence.quote.strip()
-            or evidence.quote not in chunk.text
-            or key in seen
-        ):
+        span = None if chunk is None else _verbatim_span(chunk.text, evidence.quote)
+        key = (evidence.chunk_id, span or "")
+        if chunk is None or span is None or key in seen:
             continue
         seen.add(key)
-        valid_evidence.append((chunk, evidence.quote))
+        valid_evidence.append((chunk, span))
     if not valid_evidence:
         return NotFoundResult(question=question, explanation=UNVERIFIED_EVIDENCE_EXPLANATION)
     citations = []

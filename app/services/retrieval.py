@@ -60,3 +60,26 @@ class RetrievalService:
             tuple(tuple(context) for context in contexts),
             tuple(indices[question] for question in questions),
         )
+
+    async def retrieve_saved(
+        self, collection_name: str, questions: Sequence[str]
+    ) -> RetrievalResult:
+        unique = tuple(dict.fromkeys(questions))
+        if not unique:
+            raise ValueError("Questions must be nonempty")
+        indices = {question: index for index, question in enumerate(unique)}
+        question_vectors = validate_vectors(await self.embeddings.embed(unique), len(unique))
+        contexts = await run_in_threadpool(
+            self.store.search_saved,
+            collection_name,
+            question_vectors,
+            self.top_k,
+            self.fetch_k,
+            self.min_similarity,
+            self.mmr_lambda,
+        )
+        return RetrievalResult(
+            unique,
+            tuple(tuple(context) for context in contexts),
+            tuple(indices[question] for question in questions),
+        )

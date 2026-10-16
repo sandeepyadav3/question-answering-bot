@@ -10,7 +10,9 @@ COPY requirements.lock ./
 RUN pip install -r requirements.lock
 COPY pyproject.toml README.md THIRD_PARTY_NOTICES.md ./
 COPY app ./app
-RUN pip install --no-deps .
+RUN pip install --no-deps . \
+    && mkdir -p /data \
+    && chown 10001:10001 /data
 USER 10001:10001
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
