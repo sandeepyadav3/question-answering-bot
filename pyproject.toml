@@ -30,7 +30,7 @@ include = ["app*"]
 app = ["data/*.tiktoken", "static/*.html", "static/*.css", "static/*.js", "static/examples/*"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "evals"]
 
 [tool.ruff]
 target-version = "py312"
