@@ -1,3 +1,12 @@
+## Update — 17 October 2026
+
+- Saved documents keep their own Chroma collection and a SQLite record under `CHROMA_PERSIST_DIR` (`data` locally, `/data` in Compose). A later upload does not delete an earlier one, and both survive a restart.
+- `POST /api/v1/documents` embeds the document once and returns `document_id`. `POST /api/v1/documents/{document_id}/questions` embeds only the questions. `POST /api/v1/qa` still answers from a temporary index and does not save it.
+- Those saved-document routes require a bearer token. This Compose server accepts `acme-demo-token` and `northwind-demo-token`. A missing or unknown token returns 401. Another tenant gets the same 404 as an unknown document id.
+- The page has a Tenant token field. It sends that value, shows the saved document id, and reuses it until the file or token changes. Only a failed network request is shown as "Could not reach the server."
+- A citation quote may break across PDF lines. The words still have to appear in the retrieved text.
+- GitHub Actions runs `pytest -q`, `ruff check .`, and `node --check app/static/app.js`. `pytest -q` includes the offline eval-runner checks.
+
 # Document QA
 
 A FastAPI service that answers a batch of questions from one uploaded PDF or JSON
@@ -23,7 +32,7 @@ On Windows PowerShell, copy the environment file with `Copy-Item .env.example .e
 - The interface includes fictional samples, loading and error states, per-question status, expandable evidence, and a JSON download. All uploaded and generated text is shown as plain text.
 - The container runs as a non-root user with a read-only filesystem, `no-new-privileges`, a 2 GiB memory limit, and a loopback-only port.
 - The image has a `/health` healthcheck, pinned dependencies, and a build context that excludes `.env`, tests, and local caches.
-- Uvicorn accepts 16 concurrent connections. Generation is limited to 4 calls per process. No database or volume is required.
+- Uvicorn accepts 16 concurrent connections. Generation is limited to 4 calls per process. Saved documents persist in SQLite and Chroma under `CHROMA_PERSIST_DIR` (`data` locally, the `/data` volume in Compose).
 
 ## API
 
@@ -73,6 +82,24 @@ On Windows, use `curl.exe` if `curl` is a PowerShell alias. For a PDF, substitut
 - Request errors use `{"error":{"code":"...","message":"...","request_id":"..."}}`.
 - `GET /health` returns `{"status":"ok"}` and checks liveness, not provider readiness.
 - A valid UUID `X-Request-ID` is reused. A missing or invalid value is replaced.
+
+Saved documents keep their embeddings and belong to the tenant whose bearer token uploaded them. A missing or unknown token returns 401, `Authentication is required.` Upload once, then send only questions with the same token:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/documents \
+  -H "Authorization: Bearer acme-demo-token" \
+  -F "document_file=@app/static/examples/document.json;type=application/json"
+```
+
+Use the returned `document_id` for follow-up questions. Uploading another document creates a separate collection and does not delete the earlier one. Both survive a restart.
+
+```bash
+curl -X POST http://localhost:8000/api/v1/documents/DOCUMENT_ID/questions \
+  -H "Authorization: Bearer acme-demo-token" \
+  -F "questions_file=@app/static/examples/questions.json;type=application/json"
+```
+
+The same call with the `northwind` token returns the same 404 as an unknown document id: `Document was not found.` The interface sends the token you enter and reuses the saved document until you choose a different file or token. `POST /api/v1/qa` still accepts both files in one call and does not save the index. The saved index is stored in `CHROMA_PERSIST_DIR` (`data` locally, `/data` in Compose). Compose configures two demo tenants, `acme` / `acme-demo-token` and `northwind` / `northwind-demo-token`.
 
 ## Architecture
 
@@ -129,8 +156,8 @@ ruff check .
 node --check app/static/app.js
 ```
 
-- Tests run offline and need no API key. They cover PDF and JSON parsing, tokenization, Chroma retrieval, mocked provider calls, concurrency, cancellation, deadlines, log privacy, and the full endpoint.
-- With the service running, score the grounding corpus:
+- Tests run offline and need no API key. `pytest -q` includes the offline eval-runner checks along with PDF and JSON parsing, tokenization, Chroma retrieval, mocked provider calls, concurrency, cancellation, deadlines, log privacy, and the full endpoint. GitHub Actions runs that suite, `ruff check .`, and `node --check app/static/app.js`.
+- With the service running, score the live grounding corpus separately:
 
 ```bash
 python -m evals.runner --base-url http://127.0.0.1:8000
@@ -147,4 +174,4 @@ python -m evals.runner --base-url http://127.0.0.1:8000
 - A citation proves its snippet occurs in a retrieved chunk. It does not prove every answer claim follows from that snippet.
 - Retrieval can miss relevant text, and text inside a document is not a complete defense against prompt injection.
 - Scanned PDFs have no text layer and are rejected.
-- The service has no authentication and is meant for local use.
+- Document and question routes require a configured tenant bearer token. The service is meant for local use.
